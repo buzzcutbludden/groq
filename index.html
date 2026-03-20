@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #fff;
+    color: #111;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 640px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 20px 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .header-left { display: flex; flex-direction: column; gap: 1px; }
+  h1 { font-size: 0.95rem; font-weight: 500; letter-spacing: -0.01em; color: #111; }
+  .active-label { font-size: 0.68rem; color: #bbb; font-weight: 300; margin-top: 1px; }
+
+  .clear-btn {
+    background: none; border: 1px solid #e8e8e8; border-radius: 8px;
+    padding: 5px 12px; font-size: 0.7rem; color: #999;
+    cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s;
+  }
+  .clear-btn:hover { border-color: #ccc; color: #555; }
+
+  .model-picker {
+    display: flex;
+    gap: 8px;
+    padding: 14px 24px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .model-chip {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 14px;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: #fff;
+  }
+
+  .model-chip:hover { border-color: #ccc; background: #fafafa; }
+
+  .model-chip.active {
+    border-color: #111;
+    background: #111;
+  }
+
+  .chip-icon { font-size: 1.1rem; line-height: 1; }
+  .chip-label { font-size: 0.7rem; font-weight: 500; color: #555; }
+  .chip-sub { font-size: 0.6rem; color: #bbb; font-weight: 300; }
+
+  .model-chip.active .chip-label { color: #fff; }
+  .model-chip.active .chip-sub { color: #888; }
+
+  .messages {
+    flex: 1; overflow-y: auto;
+    padding: 24px 24px 12px;
+    display: flex; flex-direction: column; gap: 18px;
+    scroll-behavior: smooth;
+  }
+
+  .messages::-webkit-scrollbar { width: 3px; }
+  .messages::-webkit-scrollbar-thumb { background: #eee; border-radius: 3px; }
+
+  .empty-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px; animation: fadeIn 0.4s ease;
+  }
+
+  .empty-icon { font-size: 1.4rem; opacity: 0.3; }
+  .empty-state p { font-size: 0.8rem; color: #ccc; font-weight: 300; }
+
+  .message { display: flex; flex-direction: column; gap: 4px; animation: fadeUp 0.22s ease; }
+  .message.user { align-items: flex-end; }
+  .message.ai { align-items: flex-start; }
+
+  .bubble {
+    padding: 10px 14px; border-radius: 14px;
+    font-size: 0.875rem; line-height: 1.65;
+    max-width: 85%; word-break: break-word; white-space: pre-wrap;
+  }
+
+  .message.user .bubble { background: #111; color: #fff; border-bottom-right-radius: 4px; }
+  .message.ai .bubble { background: #f7f7f7; color: #111; border-bottom-left-radius: 4px; }
+
+  .msg-meta { display: flex; align-items: center; gap: 6px; padding: 0 2px; }
+  .msg-time { font-size: 0.6rem; color: #ccc; font-weight: 300; }
+
+  .copy-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: 0.6rem; color: #ccc; padding: 1px 6px;
+    border-radius: 5px; font-family: 'Inter', sans-serif;
+    transition: all 0.15s; opacity: 0;
+  }
+  .message:hover .copy-btn { opacity: 1; }
+  .copy-btn:hover { background: #f0f0f0; color: #555; }
+  .copy-btn.copied { color: #5a9; opacity: 1; }
+
+  .typing-wrap { align-self: flex-start; animation: fadeUp 0.22s ease; }
+  .typing-bubble {
+    background: #f7f7f7; padding: 12px 16px;
+    border-radius: 14px; border-bottom-left-radius: 4px;
+    display: inline-flex; gap: 4px; align-items: center;
+  }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: #bbb; animation: bounce 1.2s infinite ease-in-out; }
+  .dot:nth-child(2) { animation-delay: 0.15s; }
+  .dot:nth-child(3) { animation-delay: 0.3s; }
+
+  .input-area { padding: 12px 24px 20px; border-top: 1px solid #f0f0f0; }
+
+  .key-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px; padding: 7px 12px;
+    border: 1px solid #f0f0f0; border-radius: 10px; transition: border-color 0.15s;
+  }
+  .key-row:focus-within { border-color: #ddd; }
+  .key-label { font-size: 0.6rem; color: #bbb; font-weight: 500; letter-spacing: 0.06em; white-space: nowrap; }
+  .key-input { flex: 1; border: none; outline: none; font-size: 0.78rem; font-family: 'Inter', sans-serif; color: #333; background: none; }
+  .key-status { font-size: 0.58rem; padding: 2px 7px; border-radius: 6px; font-weight: 500; white-space: nowrap; }
+  .key-status.set { background: #e8f5ee; color: #2d7a50; }
+  .key-status.unset { background: #fef0f0; color: #c04040; }
+
+  .input-row {
+    display: flex; gap: 8px; align-items: flex-end;
+    border: 1px solid #e8e8e8; border-radius: 14px;
+    padding: 8px 8px 8px 14px; transition: border-color 0.15s;
+  }
+  .input-row:focus-within { border-color: #ccc; }
+
+  textarea {
+    flex: 1; border: none; outline: none; background: none;
+    font-family: 'Inter', sans-serif; font-size: 0.875rem;
+    color: #111; resize: none; line-height: 1.5; max-height: 120px; padding: 3px 0;
+  }
+  textarea::placeholder { color: #ccc; }
+
+  .send-btn {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #111; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s;
+  }
+  .send-btn:hover { background: #333; }
+  .send-btn:active { transform: scale(0.95); }
+  .send-btn:disabled { background: #e8e8e8; cursor: not-allowed; transform: none; }
+  .send-btn svg { width: 14px; height: 14px; fill: #fff; }
+  .send-btn:disabled svg { fill: #bbb; }
+
+  .error-msg { font-size: 0.73rem; color: #c04040; text-align: center; padding: 8px; animation: fadeUp 0.22s ease; }
+
+  .hint { text-align: center; font-size: 0.58rem; color: #ddd; margin-top: 8px; font-weight: 300; }
+  .hint a { color: #ccc; text-decoration: none; border-bottom: 1px solid #e8e8e8; }
+  .hint a:hover { color: #999; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="header-left">
+      <h1>Assistant</h1>
+      <span class="active-label" id="activeLabel">General · Llama 3.3 70B</span>
+    </div>
+    <button class="clear-btn" onclick="clearChat()">Clear</button>
+  </header>
+
+  <div class="model-picker">
+    <div class="model-chip active" onclick="selectModel(this)" data-model="llama-3.3-70b-versatile" data-label="General · Llama 3.3 70B">
+      <span class="chip-icon">💬</span>
+      <span class="chip-label">General</span>
+      <span class="chip-sub">Llama 3.3 70B</span>
+    </div>
+    <div class="model-chip" onclick="selectModel(this)" data-model="moonshotai/kimi-k2-instruct-0905" data-label="Creative · Kimi K2">
+      <span class="chip-icon">✦</span>
+      <span class="chip-label">Creative</span>
+      <span class="chip-sub">Kimi K2</span>
+    </div>
+  </div>
+
+  <div class="messages" id="messages">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">✦</div>
+      <p>How can I help you today?</p>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="key-row">
+      <span class="key-label">GROQ KEY</span>
+      <input class="key-input" type="password" id="apiKey" placeholder="gsk_..." oninput="updateKeyStatus()"/>
+      <span class="key-status unset" id="keyStatus">not set</span>
+    </div>
+    <div class="input-row">
+      <textarea id="input" rows="1" placeholder="Message..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+      </button>
+    </div>
+    <p class="hint">Free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a> · Shift+Enter for new line</p>
+  </div>
+
+</div>
+<script>
+  const history = [];
+  let isLoading = false;
+  let currentModel = 'llama-3.3-70b-versatile';
+
+  function selectModel(el) {
+    document.querySelectorAll('.model-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    currentModel = el.dataset.model;
+    document.getElementById('activeLabel').textContent = el.dataset.label;
+  }
+
+  function updateKeyStatus() {
+    const key = document.getElementById('apiKey').value.trim();
+    const s = document.getElementById('keyStatus');
+    if (key.startsWith('gsk_') && key.length > 20) {
+      s.textContent = 'set ✓'; s.className = 'key-status set';
+    } else {
+      s.textContent = 'not set'; s.className = 'key-status unset';
+    }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  function getTime() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function addMessage(role, text) {
+    document.getElementById('emptyState')?.remove();
+    const container = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    const time = document.createElement('span');
+    time.className = 'msg-time';
+    time.textContent = getTime();
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.textContent = 'copy';
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'copied';
+      copyBtn.classList.add('copied');
+      setTimeout(() => { copyBtn.textContent = 'copy'; copyBtn.classList.remove('copied'); }, 1500);
+    };
+    meta.appendChild(time);
+    meta.appendChild(copyBtn);
+    div.appendChild(bubble);
+    div.appendChild(meta);
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function showError(msg) {
+    const container = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'error-msg';
+    div.textContent = msg;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    setTimeout(() => div.remove(), 6000);
+  }
+
+  function showTyping() {
+    const container = document.getElementById('messages');
+    const wrap = document.createElement('div');
+    wrap.className = 'typing-wrap';
+    wrap.id = 'typing';
+    wrap.innerHTML = `<div class="typing-bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+    container.appendChild(wrap);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function removeTyping() { document.getElementById('typing')?.remove(); }
+
+  function clearChat() {
+    history.length = 0;
+    document.getElementById('messages').innerHTML = `
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">✦</div>
+        <p>How can I help you today?</p>
+      </div>`;
+  }
+
+  async function sendMessage() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const input = document.getElementById('input');
+    const text = input.value.trim();
+    if (!text) return;
+    if (!apiKey || !apiKey.startsWith('gsk_')) {
+      showError('Enter a valid Groq API key (gsk_...). Free at console.groq.com');
+      return;
+    }
+    if (isLoading) return;
+    isLoading = true;
+    document.getElementById('sendBtn').disabled = true;
+    input.value = '';
+    input.style.height = 'auto';
+    addMessage('user', text);
+    history.push({ role: 'user', content: text });
+    showTyping();
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: currentModel, messages: history, max_tokens: 1024, temperature: 0.7 })
+      });
+      const data = await res.json();
+      removeTyping();
+      if (!res.ok) {
+        showError(data.error?.message || 'Something went wrong. Check your API key.');
+        history.pop();
+      } else {
+        const reply = data.choices[0].message.content;
+        history.push({ role: 'assistant', content: reply });
+        addMessage('ai', reply);
+      }
+    } catch(e) {
+      removeTyping();
+      showError('Network error. Serve via HTTP: python -m http.server 8080');
+      history.pop();
+    }
+    isLoading = false;
+    document.getElementById('sendBtn').disabled = false;
+    input.focus();
+  }
+</script>
+</body>
+</html>
